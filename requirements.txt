@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlglot
+duckdb
+pyyaml
+pytest
+openai
+python-dotenv
+httpx
+streamlit

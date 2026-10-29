@@ -1,0 +1,29 @@
+version: 1
+default: deny
+
+allowed_statements: [select]
+
+# Untagged columns must be listed here. Any column not listed here or in
+# "columns" below is denied (default deny).
+tables:
+  orders:
+    allowed: true
+    columns: [order_id, customer_id, amount, order_date]
+  customers:
+    allowed: true
+    columns: [customer_id, first_name, last_name, plan]
+
+# Classified columns, each with an explicit action.
+columns:
+  customers.email:  { tag: pii,       action: require_approval }
+  customers.phone:  { tag: pii,       action: require_approval }
+  customers.ssn:    { tag: sensitive, action: deny }
+  customers.notes:  { tag: untrusted, action: allow }
+
+limits:
+  require_limit: true
+  max_limit: 1000
+  max_rows_per_session: 5000
+  max_pii_columns_per_session: 3
+
+on_error: deny
