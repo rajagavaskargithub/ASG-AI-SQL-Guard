@@ -7,7 +7,7 @@ deterministic code decides whether it may run.
 > Do not expose it to the internet and do not point it at real data.
 > It reduces risk; it does not guarantee safety.
 
-Demo video: https://youtu.be/FCjWELCRtZI
+Demo video: https://youtu.be/ZjJDEFoqVR4
 
 ## How it works
 
