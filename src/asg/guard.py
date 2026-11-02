@@ -3,6 +3,7 @@ Deterministic code only. No LLM is involved in the decision."""
 from __future__ import annotations
 
 import hashlib
+import re
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -19,6 +20,36 @@ BLOCKED_FUNCS = {
     "readcsv", "readcsvauto", "readjson", "readjsonauto", "readparquet",
     "readtext", "readblob", "glob", "getenv", "query", "querytable",
     "duckdbsecrets", "columns",
+}
+
+
+# Functions an analytics query may use (normalized: lowercase, no underscores).
+# Anything else is denied. If a harmless function is wrongly denied, the denial
+# reason names it: add it here after checking it is safe.
+ALLOWED_FUNCS = {
+    # aggregates
+    "count", "sum", "avg", "min", "max", "median", "mode", "stddev", "stddevpop",
+    "stddevsamp", "variance", "varpop", "varsamp", "quantile", "quantilecont",
+    "quantiledisc", "approxquantile", "approxdistinct", "arrayagg", "list",
+    "groupconcat", "stringagg", "listagg", "anyvalue", "first", "last", "countif",
+    "sumif", "boolor", "booland",
+    # window
+    "rownumber", "rank", "denserank", "percentrank", "cumedist", "ntile", "lag",
+    "lead", "firstvalue", "lastvalue", "nthvalue",
+    # conditional and casting
+    "case", "if", "coalesce", "nullif", "ifnull", "greatest", "least", "cast",
+    "trycast", "exists",
+    # math
+    "abs", "round", "ceil", "ceiling", "floor", "sqrt", "pow", "power", "ln",
+    "log", "sign",
+    # string
+    "lower", "upper", "length", "substring", "substr", "concat", "concatws", "trim",
+    "ltrim", "rtrim", "replace", "left", "right", "lpad", "rpad", "startswith",
+    "endswith", "contains",
+    # date and time
+    "datetrunc", "timestamptrunc", "datediff", "dateadd", "datesub", "datepart",
+    "extract", "year", "month", "day", "week", "quarter", "currentdate",
+    "currenttimestamp",
 }
 
 
@@ -93,8 +124,19 @@ def _check(sql: str, policy: dict, session: Session) -> Decision:
             names.add(str(f.this))
         if any(n.lower().replace("_", "") in BLOCKED_FUNCS for n in names):
             return _deny(f"function {sorted(names)} is blocked", h)
+        fname = (str(f.this) if isinstance(f, exp.Anonymous) else f.key).lower().replace("_", "")
+        if fname not in ALLOWED_FUNCS:
+            return _deny(f"function '{fname}' is not on the allowlist", h)
     if stmt.find(exp.Placeholder) or stmt.find(exp.Parameter):
         return _deny("query parameters are not allowed", h)
+
+    # 3b. Constructs that rename or address columns without naming them
+    if any(a.args.get("columns") for a in stmt.find_all(exp.TableAlias)):
+        return _deny("column lists on table aliases are not allowed", h)
+    scrubbed = re.sub(r"'(?:[^']|'')*'", "", canonical)
+    scrubbed = re.sub(r'"(?:[^"]|"")*"', "", scrubbed)
+    if "#" in scrubbed:
+        return _deny("positional column references are not allowed", h)
 
     # 4. Tables
     cte_names = {c.alias.lower() for c in stmt.find_all(exp.CTE)}
