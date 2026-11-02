@@ -78,3 +78,27 @@ Approval "identity" in the demo is typed text.
 
 - Independent project; not affiliated with or endorsed by Meta. "Muse" is Meta's name for its models.
 - License: MIT.
+
+## Red-team findings and known issues
+
+An evasion red-team (`redteam_evasion.py`, `redteam_batch2.py`, plus an adaptive
+model attacker) found problems in the first version of the guard:
+
+- **Three data leaks:** renaming columns with an alias list
+  (`FROM customers AS t(a1, ..., plan, ...)`) returned SSNs and emails under allowed
+  names, and positional references (`SELECT #6`) returned SSNs.
+- **Information disclosure:** `version()` and `current_setting()` were allowed.
+- **Fixes:** alias column lists and positional references are denied, and only
+  allowlisted functions may be used. All are covered by regression tests.
+- **Cost:** `UNION` and alias column lists such as `WITH x(a, b) AS (...)` are denied,
+  which blocks some harmless queries.
+
+Latest runs (fake data, one sandbox): 52 meaningful attacks across two corpora, 0 bypasses.
+Both corpora were used to tune the guard, so this confirms the fixes; it is not proof of
+security. An adaptive model attacker found nothing in 36 attempts, but 6 of those replies
+were unparseable and the sample is small.
+
+The detailed denial reasons are still returned to callers. An attacker model used them to
+adjust its technique, so agent-facing errors should be coarse. Not yet implemented.
+
+ASG reduces risk; it does not guarantee safety. Do not use it to protect real data.
