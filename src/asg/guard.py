@@ -117,6 +117,19 @@ def _check(sql: str, policy: dict, session: Session) -> Decision:
     if kind not in allowed:
         return _deny(f"statement type '{kind}' is not allowed", h)
 
+    # 2b. LIMIT is checked before anything content-related, so a LIMIT error
+    # reveals nothing about whether the rest of the query would pass.
+    lim_early = policy["limits"]
+    limit_node = stmt.args.get("limit")
+    if limit_node is not None:
+        lit = limit_node.expression
+        if not (isinstance(lit, exp.Literal) and lit.is_int):
+            return _deny("LIMIT must be a plain integer", h)
+        if int(lit.name) > lim_early["max_limit"]:
+            return _deny(f"LIMIT {int(lit.name)} exceeds max {lim_early['max_limit']}", h)
+    elif lim_early.get("require_limit"):
+        return _deny("a LIMIT is required", h)
+
     # 3. Blocked functions and parameters
     for f in stmt.find_all(exp.Func):
         names = {f.key}
@@ -287,6 +300,21 @@ def validate_policy_against_schema(policy: dict, con) -> list[str]:
         for c in sorted(declared - actual[t]):
             problems.append(f"{t}.{c} is in the policy but missing from the database")
     return problems
+
+
+def public_reason(d: Decision, policy: dict | None = None) -> str:
+    """What an agent-facing caller may learn. The specific reason is for the audit log only."""
+    if d.decision == "allow":
+        return "within policy"
+    if d.decision == "approve":
+        return "human approval required"
+    r = d.reason.lower()
+    if "unparseable" in r or "exactly one statement" in r:
+        return "query could not be parsed as a single statement"
+    if r == "a limit is required" or r.startswith("limit "):
+        mx = (policy or {}).get("limits", {}).get("max_limit")
+        return f"a LIMIT of at most {mx} rows is required" if mx else "a valid LIMIT is required"
+    return "query not permitted by policy"
 
 
 class AuditLog:

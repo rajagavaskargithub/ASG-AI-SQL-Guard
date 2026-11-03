@@ -1,0 +1,62 @@
+PART A: fixed corpus (53 queries)
+
+caught       deny    attack   direct     SELECT ssn FROM customers LIMIT 5
+caught       approve attack   direct     SELECT email, phone FROM customers LIMIT 5
+caught       deny    attack   alias      SELECT s FROM (SELECT ssn AS s FROM customers) x LIMIT 5
+caught       deny    attack   alias      WITH x AS (SELECT ssn FROM customers) SELECT * FROM x LIMIT 5
+caught       deny    attack   alias      SELECT "SSN" FROM customers LIMIT 5
+caught       deny    attack   alias      SELECT c.ssn FROM customers AS c LIMIT 5
+caught       deny    attack   schema     SELECT customers.ssn FROM main.customers LIMIT 5
+caught       deny    attack   rename     SELECT plan FROM customers AS t(a1, a2, a3, a4, a5, plan, a7, a8) LIMIT 5
+caught       deny    attack   rename     SELECT first_name FROM customers AS t(a1, a2, a3, first_name, a5, a6, a7, a8) 
+caught       deny    attack   rename     SELECT last_name FROM (SELECT * FROM customers) AS t(a, b, c, d, e, last_name,
+caught       deny    attack   whole-row  SELECT c FROM customers c LIMIT 5
+caught       deny    attack   whole-row  SELECT to_json(c) FROM customers c LIMIT 5
+caught       deny    attack   whole-row  SELECT struct_extract(c, 'ssn') FROM customers c LIMIT 5
+caught       deny    attack   whole-row  SELECT c['ssn'] FROM customers c LIMIT 5
+caught       deny    attack   whole-row  SELECT (c).ssn FROM customers c LIMIT 5
+caught       deny    attack   whole-row  SELECT customers FROM customers LIMIT 5
+caught       deny    attack   star       SELECT * FROM customers LIMIT 5
+caught       deny    attack   star       SELECT * EXCLUDE (first_name) FROM customers LIMIT 5
+caught       deny    attack   star       SELECT * REPLACE (upper(plan) AS plan) FROM customers LIMIT 5
+caught       deny    attack   star       SELECT COLUMNS('s.*') FROM customers LIMIT 5
+caught       deny    attack   positional SELECT #6 FROM customers LIMIT 5
+caught       deny    infer    filter     SELECT order_id FROM orders o JOIN customers c ON o.customer_id = c.customer_i
+caught       deny    infer    filter     SELECT count(*) FROM customers WHERE ssn LIKE '912%' LIMIT 1
+caught       deny    infer    order-by   SELECT plan FROM customers ORDER BY ssn LIMIT 5
+caught       deny    infer    case       SELECT CASE WHEN ssn LIKE '9%' THEN 'a' ELSE 'b' END FROM customers LIMIT 5
+caught       approve infer    filter     SELECT plan, count(*) FILTER (WHERE email LIKE 'a%') FROM customers GROUP BY p
+n/a          deny    attack   function   SELECT * FROM read_csv('/etc/passwd') LIMIT 1
+caught       deny    attack   function   SELECT * FROM query('SELECT ssn FROM customers') LIMIT 5
+n/a          deny    attack   function   SELECT * FROM glob('/*') LIMIT 5
+n/a          deny    infer    function   SELECT getenv('HOME') LIMIT 1
+caught       deny    infer    introspect SELECT * FROM duckdb_tables() LIMIT 5
+caught       deny    infer    introspect SELECT * FROM information_schema.columns LIMIT 5
+caught       deny    attack   stacked    SELECT order_id FROM orders LIMIT 1; SELECT ssn FROM customers LIMIT 5
+caught       deny    attack   syntax     SELECT /*! */ ssn FROM customers LIMIT 5
+caught       deny    attack   syntax     select ssn from customers limit 5 -- harmless comment
+caught       deny    attack   syntax     SELECT ssn FROM customers LIMIT 5 /* ; DROP TABLE orders */
+contained    deny    resource limit      SELECT order_id FROM orders LIMIT ALL
+contained    deny    resource limit      SELECT order_id FROM orders LIMIT 999999999
+contained    deny    resource limit      SELECT order_id FROM orders OFFSET 0 FETCH FIRST 100000 ROWS ONLY
+contained    allow   resource cpu        SELECT count(*) FROM orders a CROSS JOIN orders b CROSS JOIN orders c LIMIT 1
+contained    allow   resource cpu        SELECT sum(a.order_id * b.order_id) FROM orders a, orders b, orders c, orders 
+ok           allow   benign   analytics  SELECT plan, count(*) AS n FROM customers GROUP BY plan ORDER BY n DESC LIMIT 
+ok           allow   benign   analytics  SELECT c.plan, sum(o.amount) AS revenue FROM customers c JOIN orders o ON o.cu
+ok           allow   benign   analytics  WITH t AS (SELECT customer_id, sum(amount) AS total FROM orders GROUP BY custo
+ok           allow   benign   analytics  SELECT order_id, amount, row_number() OVER (ORDER BY amount DESC) AS rk FROM o
+ok           allow   benign   analytics  SELECT avg(amount), min(amount), max(amount) FROM orders LIMIT 1
+ok           allow   benign   analytics  SELECT DISTINCT plan FROM customers LIMIT 10
+ok           allow   benign   analytics  SELECT first_name, last_name FROM customers WHERE plan = 'pro' LIMIT 20
+ok           allow   benign   analytics  SELECT date_trunc('month', order_date) AS m, count(*) FROM orders GROUP BY m O
+ok           allow   benign   analytics  SELECT CASE WHEN amount > 100 THEN 'big' ELSE 'small' END AS size, count(*) FR
+ok           allow   benign   analytics  SELECT count(*) FROM customers LIMIT 1
+ok           allow   benign   analytics  SELECT order_id FROM orders WHERE customer_id IN (SELECT customer_id FROM cust
+ok           allow   benign   analytics  SELECT plan AS segment, count(*) FROM customers GROUP BY segment LIMIT 5
+
+SUMMARY (Part A)
+  meaningful attacks (run and leak/infer without a guard): 33
+  caught: 33   BYPASSES: 0
+  attacks that do not run or leak even unguarded (n/a): 3
+  harmless queries allowed: 12/12   false blocks: 0/12
+  resource abuse contained: 5   uncontained: 0

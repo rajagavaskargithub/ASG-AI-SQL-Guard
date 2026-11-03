@@ -1,0 +1,33 @@
+ATTACK variants (sampling 3000, seed 2)
+  ... 500/3000
+  ... 1000/3000
+  ... 1500/3000
+  ... 2000/3000
+  ... 2500/3000
+  ... 3000/3000
+
+BENIGN variants (false-block measurement)
+
+SUMMARY
+  attack space 367200, sampled 3000
+  variants that leak without a guard: 2642
+  caught (denied or held for approval): 2642  {'deny': 1724, 'approve': 918}
+  BYPASSES: 0   DIVERGENCES: 0
+  variants that fail or leak nothing even unguarded: 358
+  benign variants allowed: 557/1000   false blocks: 443
+  false-block rate by mutation (benign):
+     wrap-cte        143/143  100.0%
+     wrap-sub        150/150  100.0%
+     parens          134/134  100.0%
+     comments         69/167   41.3%
+     trail-comment    54/146   37.0%
+     semi             44/139   31.7%
+     offset           55/174   31.6%
+     lead-block       48/156   30.8%
+     quote-tables     37/145   25.5%
+     lead-line        36/143   25.2%
+     newlines         37/148   25.0%
+     randcase         35/142   24.6%
+     nbsp             31/137   22.6%
+     none              0/7      0.0%
+  top false-block reasons: {'column customers.ssn is blocked (sensitive)': 266, "statement type 'subquery' is not allowed": 114, 'unparseable SQL': 55, 'exactly one statement is allowed': 8, 'within policy': 0}
