@@ -18,6 +18,9 @@ Question -> LLM (untrusted) -> SQL -> ASG guard -> audit log
                                         `-- deny    -> stop
 ```
 
+<img width="2720" height="2400" alt="asg_loop_diagram" src="https://github.com/user-attachments/assets/7f58c6bf-1dc6-4d35-959d-b64062005cef" />
+
+
 - Parses each query with sqlglot: one statement, `SELECT` only
 - Table allowlist and column default-deny; classified columns (`ssn` blocked, `email` and `phone` need approval)
 - Catches `SELECT *`, `c.*`, whole-row references, and filtering on blocked columns
